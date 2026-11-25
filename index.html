@@ -1,0 +1,2247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SMART TRANSIT 3D — Noida University Bus Platform</title>
+
+    <!-- Leaflet Real Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Real Scannable QR Code Generator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- Firebase SDKs (Compat v11.6.0) -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+
+    <style>
+        :root {
+            --bg: #050914;
+            --panel: rgba(15, 23, 42, 0.88);
+            --card: rgba(22, 34, 59, 0.82);
+            --soft: #0b1324;
+            --border: rgba(148, 163, 184, 0.18);
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --sky: #38bdf8;
+            --emerald: #10b981;
+            --purple: #a855f7;
+            --amber: #f59e0b;
+            --rose: #f43f5e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Inter", sans-serif;
+            background:
+                radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.14), transparent 40%),
+                radial-gradient(circle at 85% 90%, rgba(168, 85, 247, 0.12), transparent 40%),
+                var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 16px;
+        }
+        .app-shell { max-width: 1440px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+        /* TOPBAR */
+        .topbar {
+            background: var(--panel); backdrop-filter: blur(14px);
+            border: 1px solid var(--border); border-radius: 16px; padding: 14px 20px;
+            display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .logo-3d {
+            width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.4rem;
+            background: linear-gradient(135deg, #0284c7, #7c3aed);
+            box-shadow: 0 8px 20px rgba(56, 189, 248, 0.35);
+            transform: perspective(300px) rotateY(-10deg);
+        }
+        .brand h1 { font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .brand p { font-size: 0.76rem; color: var(--muted); }
+        .badge-3d {
+            font-size: 0.64rem; padding: 3px 8px; border-radius: 999px;
+            background: linear-gradient(90deg, #38bdf8, #a855f7); color: #050914; font-weight: 800;
+        }
+        .role-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .role-label { font-size: 0.7rem; font-weight: 700; color: var(--muted); }
+        select, input, textarea {
+            background: var(--soft); color: var(--text); border: 1px solid var(--border);
+            border-radius: 10px; padding: 8px 11px; font-size: 0.82rem; font-family: inherit;
+        }
+        .clock-pill {
+            font-family: "JetBrains Mono", monospace; font-size: 0.8rem;
+            background: var(--soft); border: 1px solid var(--border); padding: 7px 12px; border-radius: 10px;
+        }
+
+        /* PROFESSIONAL GLASSMORPHIC NAVIGATION DOCK */
+        .main-nav {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(56, 189, 248, 0.35) transparent;
+        }
+        .main-nav::-webkit-scrollbar { height: 4px; }
+        .main-nav::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.35); border-radius: 999px; }
+
+        .nav-btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--muted);
+            padding: 9px 14px;
+            border-radius: 11px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .nav-btn svg {
+            width: 15px;
+            height: 15px;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            flex-shrink: 0;
+            opacity: 0.78;
+            transition: transform 0.2s ease, opacity 0.2s ease, stroke 0.2s ease;
+        }
+        .nav-num {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: rgba(148, 163, 184, 0.12);
+            color: var(--muted);
+            transition: all 0.22s ease;
+        }
+        .nav-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(148, 163, 184, 0.2);
+        }
+        .nav-btn:hover svg {
+            opacity: 1;
+            transform: scale(1.08);
+        }
+        .nav-btn:hover .nav-num {
+            background: rgba(56, 189, 248, 0.18);
+            color: var(--sky);
+        }
+        .nav-btn.active {
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.24), rgba(139, 92, 246, 0.24));
+            border-color: rgba(56, 189, 248, 0.55);
+            box-shadow: 0 4px 16px rgba(14, 165, 233, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+        .nav-btn.active svg {
+            opacity: 1;
+            stroke: var(--sky);
+        }
+        .nav-btn.active .nav-num {
+            background: linear-gradient(135deg, #38bdf8, #a855f7);
+            color: #050914;
+        }
+        .nav-btn.hidden-role { display: none !important; }
+
+        /* PAGES */
+        .page { display: none; animation: fadeIn 0.25s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 3D HERO */
+        .hero-3d {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 27, 75, 0.88));
+            border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 20px; padding: 26px;
+            display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px; align-items: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+        }
+        .eyebrow { color: var(--sky); font-family: "JetBrains Mono", monospace; font-size: 0.72rem; font-weight: 700; }
+        .hero-content h2 { font-size: 1.95rem; line-height: 1.2; margin: 10px 0 12px; }
+        .grad-text { background: linear-gradient(90deg, #38bdf8, #c084fc); -webkit-background-clip: text; color: transparent; }
+        .hero-content p { color: #cbd5e1; font-size: 0.9rem; line-height: 1.55; margin-bottom: 18px; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+        .hero-3d-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; perspective: 900px; }
+        .stat-cube {
+            background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 14px; padding: 15px; transform: rotateY(-6deg) rotateX(4deg);
+            transition: transform 0.25s ease; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+        }
+        .stat-cube:hover { transform: rotateY(0deg) rotateX(0deg) translateY(-4px); }
+        .stat-cube span { font-size: 0.68rem; color: var(--muted); font-weight: 700; }
+        .stat-cube strong { display: block; font-family: "JetBrains Mono", monospace; font-size: 1.6rem; margin: 6px 0 4px; }
+        .stat-cube small { font-size: 0.72rem; color: var(--sky); }
+
+        /* CARDS & GRIDS */
+        .card-3d {
+            background: var(--card); backdrop-filter: blur(12px);
+            border: 1px solid var(--border); border-radius: 16px; padding: 18px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+        }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .tracking-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; }
+        .booking-grid { display: grid; grid-template-columns: 410px minmax(0, 1fr); gap: 16px; }
+
+        .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; }
+        .muted { color: var(--muted); font-size: 0.82rem; }
+        .row-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .section-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+        .sub-title { font-size: 1.05rem; font-weight: 800; margin: 18px 0 10px; color: #e2e8f0; }
+
+        /* BUTTONS */
+        .btn {
+            border: none; border-radius: 10px; padding: 9px 14px; font-size: 0.8rem; font-weight: 700;
+            cursor: pointer; transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        .btn:hover { transform: translateY(-2px); opacity: 0.95; }
+        .btn-primary { background: linear-gradient(135deg, #2563eb, #0ea5e9); color: #fff; }
+        .btn-accent { background: linear-gradient(135deg, #059669, #10b981); color: #fff; }
+        .btn-warn { background: linear-gradient(135deg, #d97706, #f59e0b); color: #050914; }
+        .btn-danger { background: linear-gradient(135deg, #be123c, #f43f5e); color: #fff; }
+        .btn-ghost { background: rgba(255, 255, 255, 0.07); color: #fff; border: 1px solid var(--border); }
+        .btn-sm { padding: 5px 9px; font-size: 0.72rem; }
+        .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* FORMS & PASSWORD SHOW */
+        .form-stack { display: flex; flex-direction: column; gap: 12px; }
+        .form-stack label { display: flex; flex-direction: column; gap: 6px; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; }
+        .pass-wrap { position: relative; display: flex; align-items: center; }
+        .pass-wrap input { width: 100%; padding-right: 76px; }
+        .pass-toggle {
+            position: absolute; right: 8px; background: transparent; border: none;
+            color: var(--sky); cursor: pointer; font-size: 0.75rem; font-weight: 700;
+        }
+        .link-btn { background: none; border: none; color: var(--sky); font-size: 0.78rem; cursor: pointer; text-align: left; text-decoration: underline; }
+        .forgot-box {
+            display: none; background: var(--soft); border: 1px solid var(--sky);
+            border-radius: 12px; padding: 12px; margin-top: 8px;
+        }
+        .forgot-box.open { display: block; }
+        #registerMessage { min-height: 18px; font-size: 0.8rem; font-weight: 600; }
+        .auth-hint-box {
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.76rem;
+            color: #cbd5e1;
+        }
+
+        /* 3D BUS CABIN */
+        .bus-3d-stage { perspective: 950px; padding: 18px 10px 10px; display: flex; justify-content: center; }
+        .bus-3d-cabin {
+            width: 100%; max-width: 440px;
+            background: linear-gradient(180deg, #0f172a, #090f1d);
+            border: 2px solid rgba(56, 189, 248, 0.35); border-radius: 26px 26px 14px 14px;
+            padding: 16px; transform: rotateX(22deg);
+            box-shadow: 0 28px 45px rgba(0, 0, 0, 0.6), inset 0 0 25px rgba(56, 189, 248, 0.12);
+        }
+        .driver-deck {
+            text-align: center; font-family: "JetBrains Mono", monospace; font-size: 0.72rem;
+            color: var(--sky); padding: 8px; border-bottom: 1px dashed var(--border); margin-bottom: 14px;
+        }
+        .seat-grid-3d { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .seat-3d {
+            height: 36px; border-radius: 8px; font-family: "JetBrains Mono", monospace;
+            font-size: 0.7rem; font-weight: 700; display: grid; place-items: center;
+            cursor: pointer; border: 1px solid transparent; transition: transform 0.15s ease;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+        }
+        .seat-3d:hover { transform: translateY(-3px) scale(1.05); }
+        .seat-3d.aisle { visibility: hidden; pointer-events: none; }
+        .seat-3d.monthly { background: rgba(168, 85, 247, 0.28); border-color: var(--purple); color: #e9d5ff; cursor: not-allowed; }
+        .seat-3d.open { background: rgba(16, 185, 129, 0.22); border-color: var(--emerald); color: #a7f3d0; }
+        .seat-3d.released { background: rgba(245, 158, 11, 0.25); border-color: var(--amber); color: #fde68a; }
+        .seat-3d.selected { background: var(--sky); border-color: #fff; color: #050914; transform: translateY(-4px); }
+
+        .seat-legend { display: flex; gap: 10px; font-size: 0.72rem; color: var(--muted); flex-wrap: wrap; }
+        .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 4px; }
+        .dot.purple { background: var(--purple); } .dot.green { background: var(--emerald); }
+        .dot.amber { background: var(--amber); } .dot.cyan { background: var(--sky); }
+
+        /* UPI MERCHANT PAYMENT GATEWAY BOX */
+        .upi-gateway-box {
+            display: none;
+            margin-top: 14px;
+            background: linear-gradient(180deg, #0b1324, #0f172a);
+            border: 1.5px solid var(--sky);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 12px 30px rgba(56, 189, 248, 0.18);
+        }
+        .upi-gateway-box.show { display: block; }
+
+        .qr-white-frame {
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        }
+        .upi-qr-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        /* METRO-STYLE BOARDING RECEIPT CARD */
+        .receipt-card {
+            display: none;
+            margin-top: 14px;
+            background: #0b1324;
+            border: 1.5px dashed var(--emerald);
+            border-radius: 14px;
+            padding: 14px;
+        }
+        .receipt-card.show { display: block; }
+        .receipt-row { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 5px 0; border-bottom: 1px solid rgba(148,163,184,0.1); }
+        .metro-ticket-qr-box {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 8px;
+        }
+        .pass-badge-permanent {
+            background: rgba(168, 85, 247, 0.22);
+            color: #d8b4fe;
+            border: 1px solid var(--purple);
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 800;
+        }
+        .pass-badge-daily {
+            background: rgba(56, 189, 248, 0.22);
+            color: #bae6fd;
+            border: 1px solid var(--sky);
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 800;
+        }
+
+        /* PILLS, LISTS, TABLES, CHAT */
+        .pill-ok { font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .pill-no { font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(244, 63, 94, 0.2); color: #fda4af; }
+        .pill-purple { font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(168, 85, 247, 0.22); color: #d8b4fe; }
+        .list-stack { display: flex; flex-direction: column; gap: 8px; }
+        .list-item { background: var(--soft); border: 1px solid var(--border); padding: 10px 12px; border-radius: 10px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+        #liveNoidaMap {
+            height: 460px;
+            border-radius: 14px;
+            width: 100%;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            z-index: 1;
+        }
+        .bus-marker-3d {
+            background: #0f172a;
+            border: 2px solid #38bdf8;
+            color: #fff;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 3px 7px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .qr-layout { display: flex; gap: 16px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+        .qr-meta { font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px; }
+        .timeline { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-left: 2px solid var(--border); padding-left: 14px; }
+        .timeline li { font-size: 0.82rem; color: var(--muted); }
+        .timeline li.done { color: #a7f3d0; } .timeline li.active { color: var(--sky); font-weight: 700; }
+        .tab-switch { display: flex; gap: 6px; }
+        .tab-btn { background: var(--soft); border: 1px solid var(--border); color: var(--muted); padding: 8px 12px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+        .tab-btn.active { border-color: var(--sky); color: #fff; background: rgba(56, 189, 248, 0.2); }
+        .fare-box { background: var(--soft); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; }
+        .mini-kpi span { font-size: 0.7rem; color: var(--muted); font-weight: 700; }
+        .mini-kpi strong { display: block; font-size: 1.55rem; font-family: "JetBrains Mono", monospace; margin-top: 6px; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
+        th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; }
+
+        /* HELP DESK CHAT BOX */
+        .chat-box { display: flex; flex-direction: column; height: 340px; background: var(--soft); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .chat-messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .msg { max-width: 82%; padding: 8px 11px; border-radius: 10px; font-size: 0.8rem; line-height: 1.4; }
+        .msg.bot { background: #1e293b; align-self: flex-start; color: #e2e8f0; }
+        .msg.user { background: #0284c7; align-self: flex-end; color: #fff; }
+        .chat-chips { display: flex; gap: 6px; padding: 6px 10px; flex-wrap: wrap; border-top: 1px solid var(--border); }
+        .chip { background: rgba(56,189,248,0.14); border: 1px solid rgba(56,189,248,0.35); color: #bae6fd; font-size: 0.7rem; padding: 4px 8px; border-radius: 999px; cursor: pointer; }
+        .chat-input-row { display: flex; gap: 8px; padding: 8px; border-top: 1px solid var(--border); }
+        .chat-input-row input { flex: 1; }
+
+        .toast-box { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+        .toast { background: #0f172a; border: 1px solid var(--sky); color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 0.8rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); }
+
+        @media (max-width: 1024px) {
+            .hero-3d, .grid-4, .grid-3, .grid-2, .tracking-grid, .booking-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="brand">
+                <div class="logo-3d">🚌</div>
+                <div>
+                    <h1>SMART TRANSIT <span class="badge-3d">3D PRO • NOIDA</span></h1>
+                    <p>Noida & Greater Noida University Fleet + Attendance</p>
+                </div>
+            </div>
+            <div class="role-bar">
+                <span class="role-label">ACTIVE ROLE:</span>
+                <select id="roleSwitcher">
+                    <option value="PUBLIC">Public Visitor</option>
+                    <option value="STUDENT" selected>Student</option>
+                    <option value="PARENT">Parent (Linked)</option>
+                    <option value="DRIVER">Driver (Protected)</option>
+                    <option value="ADMIN">Transport Admin (Protected)</option>
+                </select>
+                <button type="button" id="btnStaffLogout" class="btn btn-danger btn-sm hidden-role" onclick="logoutStaffRole()">Lock Staff View</button>
+                <span id="liveClock" class="clock-pill">--:--:-- --</span>
+            </div>
+        </header>
+
+        <!-- PROFESSIONAL AUTO-NUMBERED NAVIGATION DOCK -->
+        <nav class="main-nav" id="mainNav">
+            <button class="nav-btn active" data-page="home">
+                <span class="nav-num">01</span>
+                <svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/></svg>
+                <span>Home</span>
+            </button>
+
+            <button class="nav-btn" data-page="routes">
+                <span class="nav-num">02</span>
+                <svg viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>
+                <span>Noida Routes</span>
+            </button>
+
+            <button class="nav-btn" data-page="login">
+                <span class="nav-num">03</span>
+                <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Login</span>
+            </button>
+
+            <button class="nav-btn" data-page="student" data-role="STUDENT">
+                <span class="nav-num">04</span>
+                <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                <span>Student Dashboard</span>
+            </button>
+
+            <button class="nav-btn" data-page="tracking">
+                <span class="nav-num">05</span>
+                <svg viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                <span>Live 3D GPS</span>
+            </button>
+
+            <button class="nav-btn" data-page="parent" data-role="PARENT">
+                <span class="nav-num">06</span>
+                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>Parent Dashboard</span>
+            </button>
+
+            <button class="nav-btn hidden-role" data-page="driver" data-role="DRIVER" data-staff="true">
+                <span class="nav-num">07</span>
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 14v7M3.5 9.5l6.8 2M20.5 9.5l-6.8 2"/></svg>
+                <span>Driver Dashboard</span>
+            </button>
+
+            <button class="nav-btn hidden-role" data-page="admin" data-role="ADMIN" data-staff="true">
+                <span class="nav-num">08</span>
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Admin Dashboard</span>
+            </button>
+
+            <button class="nav-btn" data-page="booking">
+                <span class="nav-num">07</span>
+                <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                <span>Book & Pay</span>
+            </button>
+
+            <button class="nav-btn" data-page="help">
+                <span class="nav-num">08</span>
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>Help Desk</span>
+            </button>
+        </nav>
+
+        <main class="viewport">
+            <!-- PAGE 1: HOME -->
+            <section id="page-home" class="page active">
+                <div class="hero-3d">
+                    <div class="hero-content">
+                        <span class="eyebrow">NOIDA • GREATER NOIDA SMART TRANSIT</span>
+                        <h2>Smart Campus Transportation Pooling System <span class="grad-text">Live Bus Control</span> for Noida Campuses.</h2>
+                        <p>5 high-efficiency buses serving Noida Sector 18, Sector 62, Botanical Garden, Gaur City, Pari Chowk & Knowledge Park II with Option C seating and live Student Attendance.</p>
+                        <div class="hero-actions">
+                            <button class="btn btn-primary" onclick="goToPage('booking')">Book Seat </button>
+                            <button class="btn btn-ghost" onclick="goToPage('tracking')">Advanced  GPS</button>
+                            <button class="btn btn-ghost" onclick="goToPage('login')">Login / Register</button>
+                        </div>
+                    </div>
+                    <div class="hero-3d-stats">
+                        <div class="stat-cube"><span>ACTIVE NOIDA BUSES</span><strong>5 / 5</strong><small>Expressway + Metro Links</small></div>
+                        <div class="stat-cube"><span>OPEN SEATS NOW</span><strong id="homeFreeSeats">0</strong><small>Daily + Released Pool</small></div>
+                        <div class="stat-cube"><span>COMING TODAY</span><strong id="homeComingCount">0</strong><small>Verified Attendance</small></div>
+                        <div class="stat-cube"><span>NOT COMING</span><strong id="homeAbsentCount">0</strong><small>Seats Auto-Released</small></div>
+                    </div>
+                </div>
+
+                <h3 class="sub-title">Why Choose Our Platform?</h3>
+                <div class="grid-4">
+                    <div class="card-3d">
+                        <h3>Dual-Pool</h3>
+                        <p class="muted mt-8">Monthly pass students get guaranteed seats; daily riders book remaining + skipped seats with zero overbooking.</p>
+                    </div>
+                    <div class="card-3d">
+                        <h3>Live Student Attendance</h3>
+                        <p class="muted mt-8">Students mark "Coming" or "Not Coming" before cutoff—drivers know exact pickup counts at every Noida stop.</p>
+                    </div>
+                    <div class="card-3d">
+                        <h3>Advanced GPS</h3>
+                        <p class="muted mt-8">Live speed, coordinates, traffic delay simulation, and stop-by-stop ETA across Noida & Greater Noida.</p>
+                    </div>
+                    <div class="card-3d">
+                        <h3>Anti-Fraud QR & Receipt</h3>
+                        <p class="muted mt-8">UPI QR payment + Metro-style boarding QR pass blocks duplicate scans, and every booking generates an official receipt.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAGE 2: NOIDA ROUTES -->
+            <section id="page-routes" class="page">
+                <div class="section-head">
+                    <div>
+                        <h2>Noida Routes & Live Seat Availability</h2>
+                        <p class="muted">Real-time split between Monthly Reserved Pool & Daily Open Pool</p>
+                    </div>
+                    <select id="routeAreaFilter">
+                        <option value="ALL">All Noida Corridors</option>
+                        <option value="SEC_62">Noida Sector 62 / Botanical</option>
+                        <option value="CITY_CENTRE">Noida City Centre / Sec 52</option>
+                        <option value="SEC_137">Noida Expressway (Sec 137)</option>
+                        <option value="GAUR_CITY">Gaur City (Noida Ext)</option>
+                    </select>
+                </div>
+                <div id="routesGrid" class="grid-3"></div>
+            </section>
+
+            <!-- PAGE 3: LOGIN & FIREBASE STUDENT REGISTRATION -->
+            <section id="page-login" class="page">
+                <div class="grid-2">
+                    <div class="card-3d">
+                        <h2>Unified Role Login</h2>
+                        <p class="muted">Students: <code>rollno@universityname.edu.in</code> • Driver & Admin: Authorised Staff Username & Password.</p>
+                        <form id="loginForm" class="form-stack mt-12">
+                            <label>Select Role
+                                <select id="loginRoleSelect">
+                                    <option value="STUDENT">Student</option>
+                                    <option value="PARENT">Parent</option>
+                                    <option value="DRIVER">Driver (Password Protected)</option>
+                                    <option value="ADMIN">Transport Admin (Password Protected)</option>
+                                </select>
+                            </label>
+                            <label id="loginIdLabel">University Email / Username
+                                <input type="text" id="loginId" placeholder="rollno@universityname.edu.in" required />
+                            </label>
+                            <label>Password
+                                <div class="pass-wrap">
+                                    <input type="password" id="loginPassword" placeholder="Enter your password" required />
+                                    <button type="button" id="btnTogglePass" class="pass-toggle">👁️ Show</button>
+                                </div>
+                            </label>
+
+                            <div id="staffLoginHint" class="auth-hint-box" style="display:none;">
+                                <strong>Protected Staff Dashboard:</strong> Driver aur Admin tab tabhi khulega jab sahi staff <strong>Username</strong> aur <strong>Password</strong> enter hoga.
+                            </div>
+
+                            <button type="button" id="btnForgotToggle" class="link-btn">Forgot Password?</button>
+                            <div id="forgotBox" class="forgot-box">
+                                <p class="muted">Enter your registered email to receive a password reset link:</p>
+                                <div class="btn-row mt-8">
+                                    <input type="email" id="forgotEmail" placeholder="rollno@universityname.edu.in" style="flex:1" />
+                                    <button type="button" id="btnSendReset" class="btn btn-accent btn-sm">Send Reset Link</button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">Sign In & Open Dashboard →</button>
+                        </form>
+                    </div>
+
+                    <div class="card-3d">
+                        <h2>Student Account Registration</h2>
+                        <p class="muted">Create your account using rollno@universityname.edu.in</p>
+
+                        <form id="registerForm" class="form-stack mt-12">
+                            <label>Full Student Name
+                                <input type="text" id="regName" placeholder="Enter your full name" required />
+                            </label>
+
+                            <label>University Roll Number
+                                <input type="text" id="regRoll" placeholder="e.g. 24010101" required />
+                            </label>
+
+                            <label>University Email / Username
+                                <input type="email" id="regEmail" placeholder="rollno@universityname.edu.in" required />
+                            </label>
+
+                            <label>Create Your Password
+                                <input type="password" id="regPassword" placeholder="Create password (minimum 8 characters)" minlength="8" required />
+                            </label>
+
+                            <label>Confirm Password
+                                <input type="password" id="regConfirmPassword" placeholder="Re-enter password" required />
+                            </label>
+
+                            <label>Noida Pickup Stop
+                                <select id="regPickup">
+                                    <option>Botanical Garden Metro</option>
+                                    <option>Noida Sector 18</option>
+                                    <option>Noida Sector 62</option>
+                                    <option>Pari Chowk</option>
+                                    <option>Gaur City Chowk</option>
+                                </select>
+                            </label>
+
+                            <label>Parent Phone (Optional)
+                                <input type="tel" id="regParentPhone" placeholder="+91 98XXXXXXXX" />
+                            </label>
+
+                            <button type="submit" class="btn btn-accent">Create Student Account</button>
+                            <p id="registerMessage" class="muted"></p>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAGE 4: STUDENT DASHBOARD (WITH ATTENDANCE & ACTIVE QR PASS) -->
+            <section id="page-student" class="page">
+                <div class="section-head">
+                    <div>
+                        <h2>🎓 Student Dashboard — Vansh</h2>
+                        <p class="muted">Mark Today's Attendance, Manage Monthly Pass & Metro-Style QR Bus Pass</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="goToPage('booking')">+ Book New Seat</button>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card-3d">
+                        <div class="row-between">
+                            <h3>Today's Attendance Status</h3>
+                            <span id="studentMyAttBadge" class="pill-ok">COMING TODAY</span>
+                        </div>
+                        <p class="muted mt-8">Route: <strong>R-01 (Botanical Garden → Knowledge Park II)</strong> • Seat <strong>#04</strong></p>
+                        <p class="muted">Agar aaj nahi aa rahe ho toh "Not Coming" dabao — driver ko update mil jayega aur seat Open Pool mein release ho jayegi.</p>
+                        <div class="btn-row mt-12">
+                            <button id="btnMarkComing" class="btn btn-accent" type="button">I am Coming Today</button>
+                            <button id="btnMarkNotComing" class="btn btn-danger" type="button">Not Coming (Skip & Release Seat)</button>
+                        </div>
+                    </div>
+
+                    <div class="card-3d">
+                        <div class="row-between">
+                            <h3>Digital Boarding QR Pass</h3>
+                            <span id="studentPassTypeBadge" class="pill-purple">PERMANENT MONTHLY PASS</span>
+                        </div>
+                        <div class="qr-layout">
+                            <div class="qr-white-frame">
+                                <div id="studentDashboardQR"></div>
+                            </div>
+                            <div class="qr-meta" id="studentPassMeta">
+                                <div><strong>Student:</strong> Vansh (BCA Hons)</div>
+                                <div><strong>Bus:</strong> N-01 (UP-16-BT-4401)</div>
+                                <div><strong>Seat:</strong> #04 • <strong>Token:</strong> <code>ND-M-9042</code></div>
+                                <small class="muted">Show this QR to conductor while boarding • Duplicate scan blocked</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-3d mt-16">
+                    <h3>My Bookings & Payment History (Click any ticket to view QR)</h3>
+                    <div id="studentBookingsList" class="list-stack mt-8"></div>
+                </div>
+            </section>
+
+            <!-- PAGE 5: ADVANCED 3D LIVE GPS -->
+            <section id="page-tracking" class="page">
+                <div class="section-head">
+                    <div>
+                        <h2>Advanced 3D Live GPS — Noida Corridors</h2>
+                        <p class="muted">Real Noida Stops • Live Next-Stop HUD • Traffic Heatmap • Season & Weather Engine</p>
+                    </div>
+                    <div class="btn-row">
+                        <select id="focusBusSelect" title="Track Bus">
+                            <option value="N-01">Track Bus N-01</option>
+                            <option value="N-02">Track Bus N-02</option>
+                            <option value="N-03">Track Bus N-03</option>
+                            <option value="N-04">Track Bus N-04</option>
+                            <option value="N-05">Track Bus N-05</option>
+                        </select>
+                        <select id="seasonSelect" title="Select Season / Weather">
+                            <option value="CLEAR">Clear Sky</option>
+                            <option value="RAIN">Monsoon Rain</option>
+                            <option value="FOG">Winter Fog</option>
+                            <option value="SUMMER">Summer Heat</option>
+                        </select>
+                        <button id="btnTriggerDelay" class="btn btn-warn">Traffic: Normal</button>
+                        <button id="btnToggleSim" class="btn btn-accent">Pause GPS</button>
+                    </div>
+                </div>
+
+                <div class="card-3d" style="margin-bottom: 14px; padding: 12px 16px;">
+                    <div class="row-between" id="nextStopHud">
+                        <div><strong>Tracking:</strong> <span style="color:#38bdf8">N-01</span></div>
+                        <div><strong>Next Stop:</strong> <span style="color:#10b981">Loading...</span></div>
+                        <div><strong>Live GPS:</strong> <code>28.5642° N, 77.3345° E</code></div>
+                        <div><strong>Weather:</strong> <span>Clear Sky (100% Speed)</span></div>
+                    </div>
+                </div>
+
+                <div class="tracking-grid">
+                    <div class="card-3d map-frame">
+                        <div id="liveNoidaMap"></div>
+                    </div>
+                    <div class="card-3d">
+                        <h3>Live Fleet & Next-Stop Telemetry</h3>
+                        <div id="liveBusTelemetry" class="list-stack mt-8"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAGE 6: PARENT DASHBOARD -->
+            <section id="page-parent" class="page">
+                <div class="section-head">
+                    <div>
+                        <h2>Parent Dashboard</h2>
+                        <p class="muted">Linked Student: <strong>Vansh</strong> • Bus N-01 (Noida Sector 62 → Knowledge Park II)</p>
+                    </div>
+                    <button class="btn btn-danger" onclick="showToast('Emergency SOS Call Connected to Transport Desk!')">Emergency SOS</button>
+                </div>
+                <div class="grid-2">
+                    <div class="card-3d">
+                        <h3>Live Journey Timeline</h3>
+                        <ul class="timeline">
+                            <li class="done"><strong>07:30 AM</strong> — Bus N-01 departed Botanical Garden Metro</li>
+                            <li class="done"><strong>07:45 AM</strong> — Crossed Noida Sector 62 Electronic City</li>
+                            <li class="active"><strong>07:55 AM</strong> — Vansh Boarded (QR Verified)</li>
+                            <li><strong>08:25 AM</strong> — Expected Arrival at Knowledge Park II Campus</li>
+                        </ul>
+                    </div>
+                    <div class="card-3d">
+                        <h3>Noida Transport Contacts</h3>
+                        <div class="list-stack mt-8">
+                            <div class="list-item"><strong>Driver (Rajesh Kumar):</strong> +91 98110-44101</div>
+                            <div class="list-item"><strong>Noida Transport Control:</strong> 0120-240-8900</div>
+                            <div class="list-item"><strong>24x7 Campus Helpline:</strong> 1800-120-9911</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAGE 7: DRIVER DASHBOARD (PASSWORD PROTECTED) -->
+            <section id="page-driver" class="page">
+                <div class="section-head">
+                    <div>
+                        <h2>Driver / Conductor Dashboard — Bus N-01</h2>
+                        <p class="muted">Botanical Garden → Sec 18 → Sec 62 → Knowledge Park II</p>
+                    </div>
+                    <div class="btn-row">
+                        <button id="btnStartEndTrip" class="btn btn-accent">Start Trip</button>
+                        <button class="btn btn-danger" onclick="showToast('Breakdown Alert Sent to Admin!')">Report Breakdown</button>
+                        <button class="btn btn-ghost" onclick="logoutStaffRole()">Logout Driver</button>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card-3d">
+                        <h3>Conductor QR Boarding Scanner</h3>
+                        <p class="muted mt-8">Scan or paste student's Monthly/Daily QR ticket code to allow seat boarding:</p>
+                        <div class="btn-row mt-12">
+                            <input type="text" id="qrScanInput" placeholder="e.g. ND-M-9042 or ND-D-4821" value="ND-M-9042" style="flex:1" />
+                            <button id="btnScanQR" class="btn btn-primary" type="button">Scan & Verify</button>
+                        </div>
+                        <div id="scanResultBox" class="fare-box mt-12">Ready to scan student QR passes...</div>
+                    </div>
+
+                    <div class="card-3d">
+                        <div class="row-between">
+                            <h3>Assigned Students & Attendance</h3>
+                            <span id="driverAttSummary" class="pill-ok">0 Coming</span>
+                        </div>
+                        <div id="driverManifest" class="list-stack mt-8"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAGE 8: ADMIN DASHBOARD (PASSWORD PROTECTED) -->
+            <section id="page-admin" class="page">
+                <div class="section-head">
+                    <div>
+                        <h2>University Transport Admin Dashboard</h2>
+                        <p class="muted">Noida Fleet Control • Dual-Pool Seats • Full Student Attendance Roster</p>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" onclick="showToast('Midnight Pool Sync Completed!')">Sync Pools</button>
+                        <button class="btn btn-ghost" onclick="logoutStaffRole()">Logout Admin</button>
+                    </div>
+                </div>
+
+                <div class="grid-4">
+                    <div class="card-3d mini-kpi"><span>NOIDA BUSES</span><strong>5</strong></div>
+                    <div class="card-3d mini-kpi"><span>TOTAL SEATED</span><strong id="admSeated">0</strong></div>
+                    <div class="card-3d mini-kpi"><span>EMPTY SEATS</span><strong id="admEmpty">0</strong></div>
+                    <div class="card-3d mini-kpi"><span>COMING / ABSENT</span><strong id="admAttRatio">0 / 0</strong></div>
+                </div>
+
+                <div class="card-3d mt-16">
+                    <h3>Noida Fleet Allocation Matrix</h3>
+                    <div id="adminFleetTable" class="table-wrap mt-8"></div>
+                </div>
+
+                <div class="card-3d mt-16">
+                    <h3>Assigned Students List & Live Attendance</h3>
+                    <div id="adminStudentTable" class="table-wrap mt-8"></div>
+                </div>
+            </section>
+
+            <!-- PAGE 9: BOOK & PAY (MERCHANT UPI QR PAYMENT + METRO-STYLE RECEIPT QR) -->
+            <section id="page-booking" class="page">
+                <div class="section-head">
+                    <div>
+                        <h2>Book & Pay — 3D Bus Cabin & Metro-Style QR Receipt</h2>
+                        <p class="muted">1. Select Seat → 2. Scan Official UPI QR & Pay → 3. Get Scannable Boarding QR Receipt</p>
+                    </div>
+                    <div class="tab-switch">
+                        <button class="tab-btn active" id="tabMonthly">Monthly Pass (Permanent QR)</button>
+                        <button class="tab-btn" id="tabDaily">Daily Ticket (One-Time QR)</button>
+                    </div>
+                </div>
+
+                <div class="booking-grid">
+                    <div class="card-3d">
+                        <h3>1. Trip & Payment</h3>
+                        <div class="form-stack mt-8">
+                            <label>Noida Route <select id="bookRouteSelect"></select></label>
+                            <label>Time Slot
+                                <select id="bookSlotSelect">
+                                    <option>Morning — 07:45 AM</option>
+                                    <option>Mid-Morning — 09:15 AM</option>
+                                    <option>Evening — 04:30 PM</option>
+                                </select>
+                            </label>
+                            <div class="fare-box">
+                                <div class="row-between"><span>Selected Seat:</span><strong id="selectedSeatLabel">None</strong></div>
+                                <div class="row-between"><span>Booking Type:</span><strong id="bookingTypeLabel">Monthly Pass</strong></div>
+                                <div class="row-between"><span>Total Fare:</span><strong id="fareAmountLabel">₹2,200 / month</strong></div>
+                            </div>
+
+                            <!-- STEP 1: OPEN MERCHANT UPI QR GATEWAY -->
+                            <button id="btnProceedToPay" class="btn btn-primary" type="button">Proceed to Pay via UPI QR →</button>
+                        </div>
+
+                        <!-- STEP 2: OFFICIAL MERCHANT UPI QR CODE FOR STUDENT TO SCAN & PAY -->
+                        <div id="upiPaymentGateway" class="upi-gateway-box">
+                            <div class="row-between">
+                                <strong style="color:var(--sky)">SCAN & PAY (OFFICIAL UPI QR)</strong>
+                                <span class="pill-ok" id="upiPayAmountBadge">₹2,200</span>
+                            </div>
+                            <p class="muted mt-8">GPay, PhonePe, Paytm ya kisi bhi UPI app se neeche diya gaya QR code scan karke pay karein:</p>
+                            <div class="upi-qr-center">
+                                <div class="qr-white-frame">
+                                    <div id="merchantUpiQR"></div>
+                                </div>
+                                <div style="font-size:0.78rem;">
+                                    <strong>Merchant:</strong> Noida University Transport<br/>
+                                    <code id="merchantUpiIdLabel" style="color:var(--sky)">noidauniversity.transport@upi</code>
+                                </div>
+                            </div>
+
+                            <div class="form-stack mt-8">
+                                <label>Enter 12-Digit UPI Transaction ID / UTR
+                                    <input type="text" id="upiTxnInput" placeholder="e.g. 632918472910" maxlength="18" />
+                                </label>
+                                <div class="btn-row">
+                                    <button id="btnVerifyUpiPayment" class="btn btn-accent" type="button" style="flex:1">Verify Payment & Generate Ticket QR</button>
+                                    <button id="btnCancelUpi" class="btn btn-ghost btn-sm" type="button">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- STEP 3: OFFICIAL METRO-STYLE PAYMENT RECEIPT + CONDUCTOR SCAN QR -->
+                        <div id="paymentReceipt" class="receipt-card">
+                            <div class="row-between">
+                                <strong>OFFICIAL E-TICKET & RECEIPT</strong>
+                                <span class="pill-ok">PAID • VERIFIED</span>
+                            </div>
+                            <div id="receiptBody" class="mt-8"></div>
+
+                            <!-- METRO-STYLE BOARDING QR CODE -->
+                            <div class="metro-ticket-qr-box">
+                                <span id="receiptPassBadge" class="pass-badge-permanent">PERMANENT MONTHLY PASS QR</span>
+                                <div class="qr-white-frame">
+                                    <div id="receiptBoardingQR"></div>
+                                </div>
+                                <strong id="receiptQrTokenText" style="font-family: 'JetBrains Mono', monospace; color:var(--emerald); font-size:0.9rem;">ND-M-9042</strong>
+                                <p class="muted" id="receiptQrInstruction" style="font-size:0.75rem;">
+                                    Bus mein chadhte time conductor ko yeh QR scan karayein.
+                                </p>
+                            </div>
+
+                            <button class="btn btn-accent btn-sm mt-12" style="width:100%" onclick="window.print()">Print / Save Metro Ticket Receipt (PDF)</button>
+                        </div>
+                    </div>
+
+                    <!-- 3D INTERACTIVE BUS SEAT DECK -->
+                    <div class="card-3d">
+                        <div class="row-between">
+                            <h3>2. 3D Interactive Bus Seat Deck</h3>
+                            <div class="seat-legend">
+                                <span><i class="dot purple"></i>Monthly</span>
+                                <span><i class="dot green"></i>Open</span>
+                                <span><i class="dot amber"></i>Released</span>
+                                <span><i class="dot cyan"></i>Selected</span>
+                            </div>
+                        </div>
+                        <div class="bus-3d-stage">
+                            <div class="bus-3d-cabin">
+                                <div class="driver-deck">DRIVER CABIN • NOIDA EXPRESS</div>
+                                <div id="seatGrid3D" class="seat-grid-3d"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAGE 10: HELP DESK + LIVE CHAT BOX -->
+            <section id="page-help" class="page">
+                <div class="grid-2">
+                    <div class="card-3d">
+                        <h2>Live Help Desk Chat Box</h2>
+                        <p class="muted">Instant support for Noida routes, attendance, QR pass & refunds.</p>
+                        <div class="chat-box mt-12">
+                            <div id="chatMessages" class="chat-messages">
+                                <div class="msg bot">Hello! Welcome to Noida Smart Transit Help Desk. Ask me about routes, attendance, or QR tickets!</div>
+                            </div>
+                            <div class="chat-chips">
+                                <button class="chip" onclick="sendQuickChat('Noida routes?')">Noida routes?</button>
+                                <button class="chip" onclick="sendQuickChat('How to mark attendance?')">Attendance?</button>
+                                <button class="chip" onclick="sendQuickChat('Payment receipt?')">Receipt & QR?</button>
+                                <button class="chip" onclick="sendQuickChat('Lost item')">Lost item</button>
+                            </div>
+                            <form id="chatForm" class="chat-input-row">
+                                <input type="text" id="chatInput" placeholder="Type your question..." required />
+                                <button type="submit" class="btn btn-primary btn-sm">Send</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card-3d">
+                        <h2>Raise Support Ticket</h2>
+                        <form id="supportForm" class="form-stack mt-12">
+                            <label>Issue Type
+                                <select>
+                                    <option>Lost & Found</option>
+                                    <option>Noida Route Delay</option>
+                                    <option>Attendance / Seat Issue</option>
+                                    <option>Payment Receipt / Refund</option>
+                                </select>
+                            </label>
+                            <label>Details <textarea rows="5" placeholder="Enter bus number, Noida stop, and details..." required></textarea></label>
+                            <button type="submit" class="btn btn-primary">Submit Ticket</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toastBox" class="toast-box"></div>
+
+    <script>
+        // =====================================================================
+        // STAFF CREDENTIALS (DRIVER & ADMIN PASSWORD PROTECTION)
+        // =====================================================================
+        const STAFF_CREDENTIALS = {
+            DRIVER: {
+                username: "driver.n01",
+                password: "Driver@2026",
+                label: "Driver (Bus N-01)"
+            },
+            ADMIN: {
+                username: "admin.transit",
+                password: "Admin@2026",
+                label: "Transport Admin"
+            }
+        };
+
+        // =====================================================================
+        // FIREBASE CONFIGURATION (APNI PROJECT KEYS YAHAN DAALEIN)
+        // =====================================================================
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.firebasestorage.app",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const UNIVERSITY_DOMAIN = "@universityname.edu.in";
+
+        // =====================================================================
+        // CONFIGURATION: APNA UNIVERSITY MERCHANT UPI ID YAHAN SET KAREIN
+        // =====================================================================
+        const MERCHANT_UPI_ID = "noidauniversity.transport@upi";
+        const MERCHANT_NAME = "Noida University Smart Transit";
+
+        // =====================================================================
+        // DATA: NOIDA ROUTES + ASSIGNED STUDENTS + ATTENDANCE
+        // =====================================================================
+        const ROUTES_DATA = [
+            {
+                id: "R-01", busNo: "N-01 (UP-16-BT-4401)", area: "SEC_62",
+                name: "Botanical Garden → Sec 62 → Knowledge Park II",
+                stops: ["Botanical Garden", "Sector 18", "Sector 62", "Knowledge Park II"],
+                timings: "07:45 AM / 04:30 PM", monthlyFare: 2200, dailyFare: 95,
+                capacity: 20, monthlySeats: [1,2,3,4,5,6,7,8,9,10], releasedSeats: [], dailyBooked: [11,12]
+            },
+            {
+                id: "R-02", busNo: "N-02 (UP-16-BT-4402)", area: "CITY_CENTRE",
+                name: "Noida City Centre → Sec 52 → Pari Chowk",
+                stops: ["City Centre", "Sector 52", "Pari Chowk", "Knowledge Park II"],
+                timings: "08:00 AM / 04:45 PM", monthlyFare: 2000, dailyFare: 85,
+                capacity: 20, monthlySeats: [1,2,3,4,5,6,7,8], releasedSeats: [6], dailyBooked: [9,10]
+            },
+            {
+                id: "R-03", busNo: "N-03 (UP-16-BT-4403)", area: "SEC_137",
+                name: "Noida Expressway (Sec 137) → Knowledge Park II",
+                stops: ["Sector 137", "Advant Navis", "Pari Chowk", "Knowledge Park II"],
+                timings: "07:50 AM / 04:30 PM", monthlyFare: 1850, dailyFare: 75,
+                capacity: 20, monthlySeats: [1,2,3,4,5,6,7,8,9,10,11], releasedSeats: [], dailyBooked: [12,13]
+            },
+            {
+                id: "R-04", busNo: "N-04 (UP-16-BT-4404)", area: "GAUR_CITY",
+                name: "Gaur City (Noida Ext) → Sec 62 → Campus",
+                stops: ["Gaur City Chowk", "Sector 62", "Pari Chowk", "Knowledge Park II"],
+                timings: "07:35 AM / 04:40 PM", monthlyFare: 2300, dailyFare: 100,
+                capacity: 20, monthlySeats: [1,2,3,4,5,6,7], releasedSeats: [], dailyBooked: [8,9]
+            },
+            {
+                id: "R-05", busNo: "N-05 (UP-16-BT-4405)", area: "SEC_62",
+                name: "Sector 18 Metro → DND Loop → Knowledge Park II",
+                stops: ["Sector 18", "Mahamaya Flyover", "Sector 137", "Knowledge Park II"],
+                timings: "08:10 AM / 05:00 PM", monthlyFare: 2100, dailyFare: 90,
+                capacity: 20, monthlySeats: [1,2,3,4,5,6,7,8,9], releasedSeats: [], dailyBooked: [10]
+            }
+        ];
+
+        const ASSIGNED_STUDENTS = [
+            { id: "S-101", name: "Vansh",        bus: "N-01", stop: "Botanical Garden", seat: 4,  type: "MONTHLY", coming: true,  boarded: false },
+            { id: "S-102", name: "Nishant",      bus: "N-01", stop: "Sector 18",        seat: 5,  type: "MONTHLY", coming: true,  boarded: true  },
+            { id: "S-103", name: "Akshat",       bus: "N-01", stop: "Sector 62",        seat: 7,  type: "MONTHLY", coming: false, boarded: false },
+            { id: "S-104", name: "Priya Sharma", bus: "N-02", stop: "Noida City Centre",seat: 2,  type: "MONTHLY", coming: true,  boarded: true  },
+            { id: "S-105", name: "Rohan Verma",  bus: "N-03", stop: "Sector 137",       seat: 12, type: "DAILY",   coming: true,  boarded: false },
+            { id: "S-106", name: "Ananya Gupta", bus: "N-04", stop: "Gaur City",        seat: 3,  type: "MONTHLY", coming: false, boarded: false },
+            { id: "S-107", name: "Kabir Singh",  bus: "N-05", stop: "Sector 18",        seat: 10, type: "DAILY",   coming: true,  boarded: true  }
+        ];
+
+        const appState = {
+            role: "STUDENT",
+            unlockedStaffRole: null,
+            currentStudent: {
+                name: "Student-Name",
+                rollNumber: "BCA-01",
+                email: "vansh@universityname.edu.in"
+            },
+            bookingType: "MONTHLY",
+            selectedRouteId: "R-01",
+            selectedSeat: null,
+            pendingPayment: null,
+            scannedTokens: new Set(),
+            tripActive: false,
+            simRunning: true,
+            trafficDelay: false,
+            permanentMonthlyPass: {
+                token: "ND-M-9042",
+                type: "MONTHLY",
+                route: "R-01 (Botanical Garden → Knowledge Park II)",
+                busNo: "N-01 (UP-16-BT-4401)",
+                seat: 4,
+                fare: 2200,
+                validLabel: "PERMANENT MONTHLY PASS (VALID ALL MONTH)",
+                status: "ACTIVE"
+            },
+            studentBookings: [
+                {
+                    token: "ND-M-9042",
+                    type: "MONTHLY",
+                    route: "Botanical Garden → Sec 62 → Knowledge Park II",
+                    busNo: "N-01 (UP-16-BT-4401)",
+                    seat: 4,
+                    fare: 2200,
+                    date: "Monthly Active",
+                    status: "CONFIRMED"
+                }
+            ],
+            buses3D: [
+                { id: "N-01", progress: 0.18, speed: 0.0022, color: "#38bdf8", lat: 28.5642, lng: 77.3345 },
+                { id: "N-02", progress: 0.45, speed: 0.0019, color: "#10b981", lat: 28.5747, lng: 77.3560 },
+                { id: "N-03", progress: 0.68, speed: 0.0024, color: "#a855f7", lat: 28.5082, lng: 77.4102 },
+                { id: "N-04", progress: 0.30, speed: 0.0020, color: "#f59e0b", lat: 28.6075, lng: 77.4348 },
+                { id: "N-05", progress: 0.82, speed: 0.0018, color: "#f43f5e", lat: 28.4744, lng: 77.5040 }
+            ]
+        };
+
+        // =====================================================================
+        // REAL SCANNABLE QR CODE GENERATOR HELPER
+        // =====================================================================
+       function renderScannableQR(containerId, qrPayloadText, size = 136) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            el.innerHTML = "";
+
+            const safeText = String(qrPayloadText)
+                .replace(/→/g, "to")
+                .replace(/[^\x20-\x7E]/g, "");
+
+            if (typeof QRCode !== "undefined") {
+                try {
+                    new QRCode(el, {
+                        text: safeText,
+                        width: size,
+                        height: size,
+                        colorDark: "#050914",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.L
+                    });
+                } catch (err) {
+                    console.error("QR Error:", err);
+                    el.innerHTML = `<div style="padding:10px; color:#050914; font-family:monospace; font-size:12px;">${safeText}</div>`;
+                }
+            }
+        }
+
+        // =====================================================================
+        // TOAST & CLOCK
+        // =====================================================================
+        function showToast(msg) {
+            const box = document.getElementById("toastBox");
+            const div = document.createElement("div");
+            div.className = "toast";
+            div.textContent = msg;
+            box.appendChild(div);
+            setTimeout(() => div.remove(), 3200);
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const h = now.getHours();
+            const ampm = h >= 12 ? "PM" : "AM";
+            const h12 = String(h % 12 || 12).padStart(2, "0");
+            const m = String(now.getMinutes()).padStart(2, "0");
+            const s = String(now.getSeconds()).padStart(2, "0");
+            document.getElementById("liveClock").textContent = `${h12}:${m}:${s} ${ampm}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // =====================================================================
+        // ROLE, STAFF PROTECTION & AUTO-SERIAL-NUMBERING FOR NAV TABS
+        // =====================================================================
+        function hasStaffAccess(targetRole) {
+            return appState.unlockedStaffRole === targetRole;
+        }
+
+        function updateNavSerialNumbers() {
+            let serial = 1;
+            document.querySelectorAll("#mainNav .nav-btn").forEach(btn => {
+                if (!btn.classList.contains("hidden-role")) {
+                    const numBadge = btn.querySelector(".nav-num");
+                    if (numBadge) {
+                        numBadge.textContent = String(serial).padStart(2, "0");
+                    }
+                    serial++;
+                }
+            });
+        }
+
+        function applyRoleVisibility() {
+            const driverBtn = document.querySelector('.nav-btn[data-page="driver"]');
+            const adminBtn = document.querySelector('.nav-btn[data-page="admin"]');
+            const logoutBtn = document.getElementById("btnStaffLogout");
+
+            const driverOpt = document.querySelector('#roleSwitcher option[value="DRIVER"]');
+            const adminOpt = document.querySelector('#roleSwitcher option[value="ADMIN"]');
+
+            const driverUnlocked = hasStaffAccess("DRIVER");
+            const adminUnlocked = hasStaffAccess("ADMIN");
+
+            if (driverBtn) driverBtn.classList.toggle("hidden-role", !driverUnlocked);
+            if (adminBtn) adminBtn.classList.toggle("hidden-role", !adminUnlocked);
+
+            if (driverOpt) {
+                driverOpt.textContent = driverUnlocked ? "Driver (Bus N-01 Unlocked)" : "Driver (Protected)";
+            }
+            if (adminOpt) {
+                adminOpt.textContent = adminUnlocked ? "Transport Admin (Unlocked)" : "Transport Admin (Protected)";
+            }
+            if (logoutBtn) {
+                logoutBtn.classList.toggle("hidden-role", !driverUnlocked && !adminUnlocked);
+            }
+
+            // Re-index visible nav buttons cleanly (01, 02, 03...)
+            updateNavSerialNumbers();
+        }
+
+        function promptStaffLogin(role) {
+            const creds = STAFF_CREDENTIALS[role];
+            if (!creds) return false;
+
+            const enteredUser = window.prompt(`${creds.label} — Enter Staff Username:`);
+            if (enteredUser === null) return false;
+
+            const enteredPass = window.prompt(`${creds.label} — Enter Staff Password:`);
+            if (enteredPass === null) return false;
+
+            if (enteredUser.trim() === creds.username && enteredPass === creds.password) {
+                appState.unlockedStaffRole = role;
+                appState.role = role;
+                sessionStorage.setItem("unlockedStaffRole", role);
+                document.getElementById("roleSwitcher").value = role;
+                applyRoleVisibility();
+                showToast(`${creds.label} authenticated!`);
+                return true;
+            }
+
+            showToast("Invalid staff username or password! Dashboard remains locked.");
+            return false;
+        }
+
+        window.logoutStaffRole = function () {
+            appState.unlockedStaffRole = null;
+            sessionStorage.removeItem("unlockedStaffRole");
+            appState.role = "STUDENT";
+            document.getElementById("roleSwitcher").value = "STUDENT";
+            applyRoleVisibility();
+            showToast("Staff dashboards locked.");
+            goToPage("home");
+        };
+
+        window.goToPage = function (pageId) {
+            if ((pageId === "driver" || pageId === "admin") && !hasStaffAccess(pageId.toUpperCase())) {
+                const roleUpper = pageId.toUpperCase();
+                document.getElementById("loginRoleSelect").value = roleUpper;
+                syncLoginFormForRole(roleUpper);
+                showToast(`${roleUpper} dashboard is password-protected. Please sign in.`);
+                pageId = "login";
+            }
+
+            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+            document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+            const target = document.getElementById(`page-${pageId}`);
+            const navBtn = document.querySelector(`.nav-btn[data-page="${pageId}"]`);
+            if (target) target.classList.add("active");
+            if (navBtn) navBtn.classList.add("active");
+
+            if (pageId === "tracking") {
+                initRealNoidaMap();
+                setTimeout(() => {
+                    if (noidaMap) noidaMap.invalidateSize();
+                }, 150);
+            }
+        };
+
+        document.getElementById("mainNav").addEventListener("click", (e) => {
+            const btn = e.target.closest(".nav-btn");
+            if (btn) goToPage(btn.dataset.page);
+        });
+
+        document.getElementById("roleSwitcher").addEventListener("change", (e) => {
+            const selected = e.target.value;
+
+            if (selected === "DRIVER" || selected === "ADMIN") {
+                if (!hasStaffAccess(selected)) {
+                    const ok = promptStaffLogin(selected);
+                    if (!ok) {
+                        e.target.value = appState.role;
+                        document.getElementById("loginRoleSelect").value = selected;
+                        syncLoginFormForRole(selected);
+                        goToPage("login");
+                        return;
+                    }
+                }
+                appState.role = selected;
+                applyRoleVisibility();
+                showToast(`Switched to ${selected} Dashboard`);
+                goToPage(selected.toLowerCase());
+                return;
+            }
+
+            appState.role = selected;
+            applyRoleVisibility();
+            showToast(`Switched to ${selected} Dashboard`);
+            if (selected === "STUDENT") goToPage("student");
+            else if (selected === "PARENT") goToPage("parent");
+            else goToPage("home");
+        });
+
+        // =====================================================================
+        // LOGIN: ROLE SYNC, SHOW PASSWORD & FORGOT PASSWORD
+        // =====================================================================
+        function syncLoginFormForRole(role) {
+            const idLabel = document.getElementById("loginIdLabel");
+            const idInput = document.getElementById("loginId");
+            const staffHint = document.getElementById("staffLoginHint");
+
+            if (role === "DRIVER" || role === "ADMIN") {
+                idInput.type = "text";
+                idLabel.firstChild.textContent = `${role === "DRIVER" ? "Driver" : "Admin"} Staff Username`;
+                idInput.placeholder = role === "DRIVER" ? "e.g. driver.n01" : "e.g. admin.transit";
+                staffHint.style.display = "block";
+            } else {
+                idInput.type = "email";
+                idLabel.firstChild.textContent = "University Email / Username";
+                idInput.placeholder = "rollno@universityname.edu.in";
+                staffHint.style.display = "none";
+            }
+        }
+
+        document.getElementById("loginRoleSelect").addEventListener("change", (e) => {
+            syncLoginFormForRole(e.target.value);
+        });
+
+        document.getElementById("btnTogglePass").addEventListener("click", function () {
+            const passInput = document.getElementById("loginPassword");
+            const isHidden = passInput.type === "password";
+            passInput.type = isHidden ? "text" : "password";
+            this.textContent = isHidden ? "🙈 Hide" : "👁️ Show";
+        });
+
+        document.getElementById("btnForgotToggle").addEventListener("click", () => {
+            document.getElementById("forgotBox").classList.toggle("open");
+        });
+
+        document.getElementById("btnSendReset").addEventListener("click", async () => {
+            const mail = document.getElementById("forgotEmail").value.trim().toLowerCase();
+            if (!mail) {
+                showToast("Please enter your university email first.");
+                return;
+            }
+            try {
+                await auth.sendPasswordResetEmail(mail);
+                showToast(`Password reset link sent to ${mail}!`);
+                document.getElementById("forgotBox").classList.remove("open");
+            } catch (err) {
+                showToast("Reset failed: " + err.message);
+            }
+        });
+
+        // =====================================================================
+        // FIREBASE STUDENT REGISTRATION
+        // =====================================================================
+        document.getElementById("registerForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const msg = document.getElementById("registerMessage");
+
+            const name = document.getElementById("regName").value.trim();
+            const roll = document.getElementById("regRoll").value.trim().toLowerCase();
+            const email = document.getElementById("regEmail").value.trim().toLowerCase();
+            const password = document.getElementById("regPassword").value;
+            const confirmPassword = document.getElementById("regConfirmPassword").value;
+            const pickup = document.getElementById("regPickup").value;
+            const parentPhone = document.getElementById("regParentPhone").value.trim();
+
+            msg.style.color = "#f43f5e";
+
+            if (!name || !roll || !email || !password) {
+                msg.textContent = "Please fill all required fields.";
+                return;
+            }
+
+            if (!email.endsWith(UNIVERSITY_DOMAIN)) {
+                msg.textContent = `Please use your official university email (${UNIVERSITY_DOMAIN}).`;
+                return;
+            }
+
+            const expectedEmail = `${roll}${UNIVERSITY_DOMAIN}`;
+            if (email !== expectedEmail) {
+                msg.textContent = `Email must match your roll number: ${expectedEmail}`;
+                return;
+            }
+
+            if (password.length < 8) {
+                msg.textContent = "Password must contain at least 8 characters.";
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                msg.textContent = "Passwords do not match.";
+                return;
+            }
+
+            try {
+                msg.style.color = "#94a3b8";
+                msg.textContent = "Creating your account...";
+
+                const rollUpper = roll.toUpperCase();
+                const rollRef = db.collection("rollNumbers").doc(rollUpper);
+                const rollSnap = await rollRef.get();
+
+                if (rollSnap.exists) {
+                    msg.style.color = "#f43f5e";
+                    msg.textContent = "This roll number is already registered.";
+                    return;
+                }
+
+                const credential = await auth.createUserWithEmailAndPassword(email, password);
+                const uid = credential.user.uid;
+
+                const batch = db.batch();
+
+                batch.set(db.collection("students").doc(uid), {
+                    uid: uid,
+                    name: name,
+                    rollNumber: rollUpper,
+                    email: email,
+                    pickup: pickup,
+                    parentPhone: parentPhone,
+                    role: "STUDENT",
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                batch.set(rollRef, {
+                    uid: uid,
+                    rollNumber: rollUpper
+                });
+
+                await batch.commit();
+                await credential.user.sendEmailVerification();
+
+                msg.style.color = "#10b981";
+                msg.textContent = "Registration successful! Check your university email to verify, then login.";
+
+                document.getElementById("registerForm").reset();
+                await auth.signOut();
+
+            } catch (error) {
+                console.error(error);
+                msg.style.color = "#f43f5e";
+                msg.textContent = error.message;
+            }
+        });
+
+        // =====================================================================
+        // UNIFIED LOGIN (STUDENT FIREBASE + DRIVER/ADMIN STAFF AUTH)
+        // =====================================================================
+        document.getElementById("loginForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const loginId = document.getElementById("loginId").value.trim();
+            const password = document.getElementById("loginPassword").value;
+            const role = document.getElementById("loginRoleSelect").value;
+
+            if (role === "DRIVER" || role === "ADMIN") {
+                const creds = STAFF_CREDENTIALS[role];
+                if (loginId === creds.username && password === creds.password) {
+                    appState.unlockedStaffRole = role;
+                    appState.role = role;
+                    sessionStorage.setItem("unlockedStaffRole", role);
+                    document.getElementById("roleSwitcher").value = role;
+                    applyRoleVisibility();
+                    renderAllViews();
+                    showToast(`Logged in as ${creds.label}!`);
+                    goToPage(role.toLowerCase());
+                } else {
+                    showToast(`Invalid ${role.toLowerCase()} username or password!`);
+                }
+                return;
+            }
+
+            if (role === "PARENT") {
+                appState.role = "PARENT";
+                document.getElementById("roleSwitcher").value = "PARENT";
+                applyRoleVisibility();
+                showToast("Logged in as Parent (Linked to Student)!");
+                goToPage("parent");
+                return;
+            }
+
+            if (role === "STUDENT") {
+                const emailLower = loginId.toLowerCase();
+                try {
+                    if (!emailLower.endsWith(UNIVERSITY_DOMAIN)) {
+                        showToast(`Use your official email (rollno${UNIVERSITY_DOMAIN}).`);
+                        return;
+                    }
+
+                    const credential = await auth.signInWithEmailAndPassword(emailLower, password);
+
+                    if (!credential.user.emailVerified) {
+                        showToast("Please verify your university email first.");
+                        await auth.signOut();
+                        return;
+                    }
+
+                    const profile = await db.collection("students").doc(credential.user.uid).get();
+
+                    if (!profile.exists || profile.data().role !== "STUDENT") {
+                        showToast("Student account not found.");
+                        await auth.signOut();
+                        return;
+                    }
+
+                    const student = profile.data();
+                    appState.currentStudent = {
+                        name: student.name,
+                        rollNumber: student.rollNumber,
+                        email: student.email
+                    };
+
+                    const dashHeading = document.querySelector("#page-student h2");
+                    if (dashHeading) {
+                        dashHeading.textContent = `🎓 Student Dashboard — ${student.name} (${student.rollNumber})`;
+                    }
+
+                    showToast(`Welcome ${student.name}!`);
+
+                    appState.role = "STUDENT";
+                    const roleSwitcher = document.getElementById("roleSwitcher");
+                    if (roleSwitcher) {
+                        const studentOption = roleSwitcher.querySelector('option[value="STUDENT"]');
+                        if (studentOption) studentOption.textContent = `Student (${student.name})`;
+                        roleSwitcher.value = "STUDENT";
+                    }
+
+                    applyRoleVisibility();
+                    renderAllViews();
+                    goToPage("student");
+
+                } catch (error) {
+                    console.error(error);
+                    showToast("Login failed: " + error.message);
+                }
+            }
+        });
+
+        // =====================================================================
+        // STUDENT ATTENDANCE TOGGLE
+        // =====================================================================
+        function setMyAttendance(isComing) {
+            const me = ASSIGNED_STUDENTS[0];
+            me.coming = isComing;
+            const r1 = ROUTES_DATA[0];
+            const badge = document.getElementById("studentMyAttBadge");
+            if (isComing) {
+                r1.releasedSeats = r1.releasedSeats.filter(x => x !== 4);
+                badge.className = "pill-ok";
+                badge.textContent = "COMING TODAY";
+                showToast("Marked Coming Today — Driver Notified!");
+            } else {
+                if (!r1.releasedSeats.includes(4)) r1.releasedSeats.push(4);
+                badge.className = "pill-no";
+                badge.textContent = "NOT COMING • SEAT RELEASED";
+                showToast("Marked Not Coming — Seat #04 released to Open Pool!");
+            }
+            renderAllViews();
+        }
+        document.getElementById("btnMarkComing").addEventListener("click", () => setMyAttendance(true));
+        document.getElementById("btnMarkNotComing").addEventListener("click", () => setMyAttendance(false));
+
+        window.toggleStudentAtt = function (studentId) {
+            const st = ASSIGNED_STUDENTS.find(s => s.id === studentId);
+            if (!st) return;
+            st.coming = !st.coming;
+            showToast(`${st.name} marked ${st.coming ? "COMING" : "NOT COMING"}`);
+            renderAllViews();
+        };
+
+        // =====================================================================
+        // RENDER ALL VIEWS
+        // =====================================================================
+        function getRouteStats(r) {
+            const reservedActive = r.monthlySeats.length - r.releasedSeats.length;
+            const occupied = reservedActive + r.dailyBooked.length;
+            const free = Math.max(0, r.capacity - occupied);
+            return { reservedActive, occupied, free };
+        }
+
+       function renderAllViews() {
+            let totalFree = 0, totalSeated = 0, totalReleased = 0;
+            ROUTES_DATA.forEach(r => {
+                const st = getRouteStats(r);
+                totalFree += st.free;
+                totalSeated += st.occupied;
+                totalReleased += r.releasedSeats.length;
+            });
+
+            // Ab Coming = Total Seated (53) aur Not Coming = Released Seats (1)
+            const comingCount = totalSeated;
+            const absentCount = totalReleased;
+
+            document.getElementById("homeFreeSeats").textContent = totalFree;
+            document.getElementById("homeComingCount").textContent = comingCount;
+            document.getElementById("homeAbsentCount").textContent = absentCount;
+
+            document.getElementById("admSeated").textContent = totalSeated;
+            document.getElementById("admEmpty").textContent = totalFree;
+            document.getElementById("admAttRatio").textContent = `${comingCount} / ${absentCount}`;
+
+            renderRoutesPage();
+            renderBookingCabin();
+            renderStudentBookings();
+            renderDriverManifest();
+            renderAdminTables();
+
+            const activeTicket = appState.studentBookings[0] || appState.permanentMonthlyPass;
+            updateStudentDashboardQR(activeTicket);
+        }
+
+        function updateStudentDashboardQR(ticket) {
+            const badge = document.getElementById("studentPassTypeBadge");
+            const meta = document.getElementById("studentPassMeta");
+            const isMonthly = ticket.type === "MONTHLY";
+            const studentName = appState.currentStudent.name;
+            const studentRoll = appState.currentStudent.rollNumber;
+
+            badge.className = isMonthly ? "pill-purple" : "pass-badge-daily";
+            badge.textContent = isMonthly ? "PERMANENT MONTHLY PASS" : "DAILY ONE-TIME TICKET";
+
+            meta.innerHTML = `
+                <div><strong>Student:</strong> ${studentName} (${studentRoll})</div>
+                <div><strong>Route / Bus:</strong> ${ticket.busNo || "N-01"} (${ticket.route})</div>
+                <div><strong>Seat:</strong> #${String(ticket.seat).padStart(2, "0")} • <strong>Token:</strong> <code>${ticket.token}</code></div>
+                <small class="muted">${isMonthly ? "Permanent Monthly QR • Valid every day" : `Valid only for ${ticket.date || "Today"} • One-time scan`}</small>
+            `;
+         const qrPayload = `PASS:${ticket.token}|TYPE:${ticket.type}|SEAT:${ticket.seat}|NAME:${studentName}`;
+            renderScannableQR("studentDashboardQR", qrPayload, 115);
+        }
+
+        window.previewBookingQR = function (token) {
+            const ticket = appState.studentBookings.find(b => b.token === token);
+            if (!ticket) return;
+            updateStudentDashboardQR(ticket);
+            showToast(`Loaded ${ticket.type} QR Pass (${ticket.token}) above!`);
+        };
+
+        function renderRoutesPage() {
+            const filter = document.getElementById("routeAreaFilter").value;
+            const list = ROUTES_DATA.filter(r => filter === "ALL" || r.area === filter);
+            document.getElementById("routesGrid").innerHTML = list.map(r => {
+                const st = getRouteStats(r);
+                return `
+                    <div class="card-3d">
+                        <div class="row-between"><strong>${r.busNo}</strong><span class="pill-ok">${st.free} FREE</span></div>
+                        <h3 class="mt-8">${r.name}</h3>
+                        <p class="muted mt-8">Stops: ${r.stops.join(" → ")}</p>
+                        <p class="muted mt-8">Timings: <strong>${r.timings}</strong></p>
+                        <div class="fare-box mt-12">
+                            <div class="row-between"><span>Monthly / Daily:</span><strong>₹${r.monthlyFare} / ₹${r.dailyFare}</strong></div>
+                        </div>
+                        <button class="btn btn-primary mt-12" style="width:100%" onclick="openRouteBooking('${r.id}')">Book This Route →</button>
+                    </div>
+                `;
+            }).join("");
+        }
+        document.getElementById("routeAreaFilter").addEventListener("change", renderRoutesPage);
+
+        window.openRouteBooking = function (routeId) {
+            appState.selectedRouteId = routeId;
+            document.getElementById("bookRouteSelect").value = routeId;
+            appState.selectedSeat = null;
+            document.getElementById("upiPaymentGateway").classList.remove("show");
+            renderBookingCabin();
+            goToPage("booking");
+        };
+
+        // =====================================================================
+        // BOOKING + 3D CABIN + MERCHANT UPI QR + METRO TICKET QR
+        // =====================================================================
+        function initBookingDropdown() {
+            const sel = document.getElementById("bookRouteSelect");
+            sel.innerHTML = ROUTES_DATA.map(r => `<option value="${r.id}">${r.busNo} — ${r.name}</option>`).join("");
+            sel.addEventListener("change", () => {
+                appState.selectedRouteId = sel.value;
+                appState.selectedSeat = null;
+                document.getElementById("upiPaymentGateway").classList.remove("show");
+                renderBookingCabin();
+            });
+        }
+
+        function renderBookingCabin() {
+            const route = ROUTES_DATA.find(r => r.id === appState.selectedRouteId) || ROUTES_DATA[0];
+            let html = "";
+            for (let s = 1; s <= route.capacity; s++) {
+                if ((s - 1) % 4 === 2) html += `<div class="seat-3d aisle"></div>`;
+                const isReleased = route.releasedSeats.includes(s);
+                const isTaken = (route.monthlySeats.includes(s) && !isReleased) || route.dailyBooked.includes(s);
+                const isSelected = appState.selectedSeat === s;
+                let cls = "open";
+                if (isSelected) cls = "selected";
+                else if (isTaken) cls = "monthly";
+                else if (isReleased) cls = "released";
+                html += `<div class="seat-3d ${cls}" onclick="selectSeat3D(${s})">${String(s).padStart(2, "0")}</div>`;
+            }
+            document.getElementById("seatGrid3D").innerHTML = html;
+            document.getElementById("selectedSeatLabel").textContent = appState.selectedSeat ? `Seat #${appState.selectedSeat}` : "None";
+            document.getElementById("bookingTypeLabel").textContent = appState.bookingType === "MONTHLY" ? "Monthly Pass (Permanent QR)" : "Daily Ticket (One-Time QR)";
+            document.getElementById("fareAmountLabel").textContent = appState.bookingType === "MONTHLY" ? `₹${route.monthlyFare} / month` : `₹${route.dailyFare} / trip`;
+        }
+
+        window.selectSeat3D = function (seatNo) {
+            const route = ROUTES_DATA.find(r => r.id === appState.selectedRouteId);
+            const isReleased = route.releasedSeats.includes(seatNo);
+            const isTaken = (route.monthlySeats.includes(seatNo) && !isReleased) || route.dailyBooked.includes(seatNo);
+            if (isTaken) { showToast(`Seat #${seatNo} already booked.`); return; }
+            appState.selectedSeat = seatNo;
+            document.getElementById("upiPaymentGateway").classList.remove("show");
+            renderBookingCabin();
+        };
+
+        document.getElementById("tabMonthly").addEventListener("click", () => {
+            appState.bookingType = "MONTHLY";
+            document.getElementById("tabMonthly").classList.add("active");
+            document.getElementById("tabDaily").classList.remove("active");
+            document.getElementById("upiPaymentGateway").classList.remove("show");
+            renderBookingCabin();
+        });
+
+        document.getElementById("tabDaily").addEventListener("click", () => {
+            appState.bookingType = "DAILY";
+            document.getElementById("tabDaily").classList.add("active");
+            document.getElementById("tabMonthly").classList.remove("active");
+            document.getElementById("upiPaymentGateway").classList.remove("show");
+            renderBookingCabin();
+        });
+
+        // STEP 1: CLICK "PROCEED TO PAY VIA UPI QR"
+        document.getElementById("btnProceedToPay").addEventListener("click", () => {
+            const route = ROUTES_DATA.find(r => r.id === appState.selectedRouteId);
+            if (!appState.selectedSeat) {
+                showToast("Pehle 3D Bus Cabin mein koi Green/Amber seat select karein!");
+                return;
+            }
+
+            const seat = appState.selectedSeat;
+            const fare = appState.bookingType === "MONTHLY" ? route.monthlyFare : route.dailyFare;
+            const slot = document.getElementById("bookSlotSelect").value;
+
+            appState.pendingPayment = {
+                routeId: route.id,
+                routeName: route.name,
+                busNo: route.busNo,
+                seat: seat,
+                fare: fare,
+                bookingType: appState.bookingType,
+                slot: slot
+            };
+
+            document.getElementById("upiPayAmountBadge").textContent = `₹${fare}`;
+            document.getElementById("merchantUpiIdLabel").textContent = MERCHANT_UPI_ID;
+            document.getElementById("upiTxnInput").value = "";
+
+            const txnNote = encodeURIComponent(`Bus ${route.busNo} Seat ${seat} ${appState.bookingType}`);
+            const upiUri = `upi://pay?pa=${encodeURIComponent(MERCHANT_UPI_ID)}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${fare}&cu=INR&tn=${txnNote}`;
+            renderScannableQR("merchantUpiQR", upiUri, 165);
+
+            document.getElementById("paymentReceipt").classList.remove("show");
+            document.getElementById("upiPaymentGateway").classList.add("show");
+            showToast(`Scan UPI QR & pay ₹${fare} to generate ticket.`);
+        });
+
+        document.getElementById("btnCancelUpi").addEventListener("click", () => {
+            appState.pendingPayment = null;
+            document.getElementById("upiPaymentGateway").classList.remove("show");
+        });
+
+        // STEP 2: VERIFY UPI PAYMENT -> GENERATES METRO-STYLE BOARDING QR IN RECEIPT
+        document.getElementById("btnVerifyUpiPayment").addEventListener("click", () => {
+            if (!appState.pendingPayment) return;
+
+            const utr = document.getElementById("upiTxnInput").value.trim();
+            if (utr.length < 6) {
+                showToast("Please enter valid UPI Transaction ID / UTR (min 6 digits) after paying!");
+                return;
+            }
+
+            const p = appState.pendingPayment;
+            const route = ROUTES_DATA.find(r => r.id === p.routeId);
+            const studentName = appState.currentStudent.name;
+            const studentRoll = appState.currentStudent.rollNumber;
+
+            if (p.bookingType === "MONTHLY") {
+                route.monthlySeats.push(p.seat);
+            } else {
+                route.releasedSeats = route.releasedSeats.filter(x => x !== p.seat);
+                route.dailyBooked.push(p.seat);
+            }
+
+            const todayStr = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+            const receiptId = `RCPT-${Math.floor(100000 + Math.random() * 900000)}`;
+            let ticketToken;
+
+            if (p.bookingType === "MONTHLY") {
+                ticketToken = `ND-M-${p.seat}${Math.floor(100 + Math.random() * 899)}`;
+                appState.permanentMonthlyPass = {
+                    token: ticketToken,
+                    type: "MONTHLY",
+                    route: p.routeName,
+                    busNo: p.busNo,
+                    seat: p.seat,
+                    fare: p.fare,
+                    date: "Permanent Monthly Pass",
+                    status: "CONFIRMED"
+                };
+            } else {
+                const randCode = Math.floor(1000 + Math.random() * 9000);
+                const dayCode = new Date().getDate();
+                ticketToken = `ND-D-${dayCode}${randCode}`;
+            }
+
+            const bookingRecord = {
+                token: ticketToken,
+                type: p.bookingType,
+                route: p.routeName,
+                busNo: p.busNo,
+                seat: p.seat,
+                fare: p.fare,
+                utr: utr,
+                date: p.bookingType === "MONTHLY" ? "All Month (Permanent)" : todayStr,
+                status: "CONFIRMED"
+            };
+
+            appState.studentBookings.unshift(bookingRecord);
+
+            document.getElementById("receiptBody").innerHTML = `
+                <div class="receipt-row"><span>Receipt No:</span><strong>${receiptId}</strong></div>
+                <div class="receipt-row"><span>Student:</span><strong>${studentName} (${studentRoll})</strong></div>
+                <div class="receipt-row"><span>Bus & Route:</span><strong>${p.busNo} • ${p.routeName}</strong></div>
+                <div class="receipt-row"><span>Seat & Slot:</span><strong>Seat #${String(p.seat).padStart(2, "0")} • ${p.slot}</strong></div>
+                <div class="receipt-row"><span>Pass Type:</span><strong>${p.bookingType === "MONTHLY" ? "Monthly Pass (Permanent)" : `Daily Pass (${todayStr})`}</strong></div>
+                <div class="receipt-row"><span>Amount Paid:</span><strong>₹${p.fare} (UPI UTR: ${utr})</strong></div>
+            `;
+
+            const passBadge = document.getElementById("receiptPassBadge");
+            const qrInstr = document.getElementById("receiptQrInstruction");
+
+            if (p.bookingType === "MONTHLY") {
+                passBadge.className = "pass-badge-permanent";
+                passBadge.textContent = "PERMANENT MONTHLY PASS QR";
+                qrInstr.textContent = "Yeh aapka permanent monthly QR pass hai. Roz bus mein chadhte time conductor ko scan karayein.";
+            } else {
+                passBadge.className = "pass-badge-daily";
+                passBadge.textContent = `DAILY TICKET QR • VALID ON ${todayStr.toUpperCase()}`;
+                qrInstr.textContent = "Yeh aaj ka unique Daily Boarding QR ticket hai. Conductor ko scan karakar seat par baithein.";
+            }
+
+            document.getElementById("receiptQrTokenText").textContent = ticketToken;
+
+            const boardingQrPayload = JSON.stringify({
+                platform: "SMART_TRANSIT_3D",
+                token: ticketToken,
+                type: p.bookingType,
+                student: studentName,
+                rollNumber: studentRoll,
+                bus: p.busNo,
+                seat: p.seat,
+                validDate: bookingRecord.date
+            });
+
+            renderScannableQR("receiptBoardingQR", boardingQrPayload, 145);
+            document.getElementById("qrScanInput").value = ticketToken;
+            document.getElementById("upiPaymentGateway").classList.remove("show");
+            document.getElementById("paymentReceipt").classList.add("show");
+
+            appState.selectedSeat = null;
+            appState.pendingPayment = null;
+
+            showToast(`Payment Verified! Metro-style QR Ticket (${ticketToken}) ready.`);
+            renderAllViews();
+        });
+
+        function renderStudentBookings() {
+            document.getElementById("studentBookingsList").innerHTML = appState.studentBookings.map(b => `
+                <div class="list-item">
+                    <div>
+                        <strong>${b.type === "MONTHLY" ? "PERMANENT MONTHLY" : "DAILY TICKET"}</strong> • ${b.route} • Seat #${b.seat} (₹${b.fare})
+                        <br/><small class="muted">Validity: ${b.date}</small>
+                    </div>
+                    <div class="btn-row">
+                        <code>${b.token}</code>
+                        <span class="pill-ok">${b.status}</span>
+                        <button class="btn btn-ghost btn-sm" onclick="previewBookingQR('${b.token}')">Show QR</button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        // =====================================================================
+        // DRIVER / CONDUCTOR QR BOARDING SCANNER & ADMIN TABLES
+        // =====================================================================
+        function renderDriverManifest() {
+            const n1 = ASSIGNED_STUDENTS.filter(s => s.bus === "N-01");
+            const coming = n1.filter(s => s.coming).length;
+            document.getElementById("driverAttSummary").textContent = `${coming} / ${n1.length} Coming`;
+            document.getElementById("driverManifest").innerHTML = n1.map(s => `
+                <div class="list-item">
+                    <div><strong>${s.name}</strong> (Seat #${s.seat} • ${s.stop})</div>
+                    <div class="btn-row">
+                        <span class="${s.coming ? "pill-ok" : "pill-no"}">${s.coming ? "COMING" : "NOT COMING"}</span>
+                        <button class="btn btn-ghost btn-sm" onclick="toggleStudentAtt('${s.id}')">Toggle</button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        document.getElementById("btnScanQR").addEventListener("click", () => {
+            let rawVal = document.getElementById("qrScanInput").value.trim();
+            const res = document.getElementById("scanResultBox");
+
+            let token = rawVal;
+            if (rawVal.startsWith("{")) {
+                try {
+                    const parsed = JSON.parse(rawVal);
+                    if (parsed.token) token = parsed.token;
+                } catch (err) {}
+            }
+
+            const match = appState.studentBookings.find(b => b.token === token);
+            if (!match) {
+                res.style.borderColor = "#f43f5e";
+                res.innerHTML = `<strong style="color:#f43f5e">INVALID / EXPIRED QR TICKET:</strong> <code>${token}</code> — Boarding Denied!`;
+                return;
+            }
+
+            if (appState.scannedTokens.has(token)) {
+                res.style.borderColor = "#f59e0b";
+                res.innerHTML = `<strong style="color:#f59e0b">DUPLICATE SCAN BLOCKED:</strong> <code>${token}</code> already boarded!`;
+                return;
+            }
+
+            appState.scannedTokens.add(token);
+
+            res.style.borderColor = "#10b981";
+            res.innerHTML = `
+                <strong style="color:#10b981">VERIFIED (${match.type} PASS) — ALLOW BOARDING!</strong><br/>
+                Student: <strong>${appState.currentStudent.name}</strong> • Seat <strong>#${match.seat}</strong> • ${match.route}<br/>
+                <small class="muted">Parent Boarding Alert Sent!</small>
+            `;
+            showToast(`QR Verified! Seat #${match.seat} Boarding Allowed.`);
+        });
+
+        document.getElementById("btnStartEndTrip").addEventListener("click", (e) => {
+            appState.tripActive = !appState.tripActive;
+            e.target.textContent = appState.tripActive ? "End Trip" : "Start Trip";
+            showToast(appState.tripActive ? "Trip Started — Live Noida GPS ON" : "Trip Ended");
+        });
+
+        function renderAdminTables() {
+            document.getElementById("adminFleetTable").innerHTML = `
+                <table>
+                    <thead><tr><th>Bus</th><th>Noida Route</th><th>Monthly</th><th>Daily</th><th>Empty</th></tr></thead>
+                    <tbody>
+                        ${ROUTES_DATA.map(r => {
+                            const st = getRouteStats(r);
+                            return `<tr><td><strong>${r.busNo}</strong></td><td>${r.name}</td><td>${st.reservedActive}</td><td>${r.dailyBooked.length}</td><td style="color:#34d399"><strong>${st.free}</strong></td></tr>`;
+                        }).join("")}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById("adminStudentTable").innerHTML = `
+                <table>
+                    <thead><tr><th>ID</th><th>Student Name</th><th>Bus</th><th>Noida Stop</th><th>Seat</th><th>Attendance</th><th>Action</th></tr></thead>
+                    <tbody>
+                        ${ASSIGNED_STUDENTS.map(s => `
+                            <tr>
+                                <td>${s.id}</td><td><strong>${s.name}</strong></td><td>${s.bus}</td><td>${s.stop}</td><td>#${s.seat}</td>
+                                <td><span class="${s.coming ? "pill-ok" : "pill-no"}">${s.coming ? "COMING" : "NOT COMING"}</span></td>
+                                <td><button class="btn btn-ghost btn-sm" onclick="toggleStudentAtt('${s.id}')">Switch</button></td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // =====================================================================
+        // ADVANCED 3D LIVE GPS (NOIDA)
+        // =====================================================================
+        const NOIDA_STOPS = [
+            { name: "Botanical Garden", coords: [28.5642, 77.3345] },
+            { name: "Noida Sec 18",     coords: [28.5708, 77.3261] },
+            { name: "Noida Sec 62",     coords: [28.6208, 77.3639] },
+            { name: "Noida Sec 137",    coords: [28.5082, 77.4102] },
+            { name: "Pari Chowk",       coords: [28.4671, 77.5138] },
+            { name: "Knowledge Park II",coords: [28.4601, 77.4960] }
+        ];
+
+        const WEATHER_CONFIG = {
+            CLEAR:  { label: "Clear Sky (100% Speed)",    factor: 1.0  },
+            RAIN:   { label: "Monsoon Rain (75% Speed)",  factor: 0.75 },
+            FOG:    { label: "Winter Fog (55% Speed)",    factor: 0.55 },
+            SUMMER: { label: "Summer Heat (90% Speed)",   factor: 0.90 }
+        };
+
+        let noidaMap = null;
+        let routePolyline = null;
+        const busMarkers = {};
+
+        function initRealNoidaMap() {
+            if (noidaMap || typeof L === "undefined") return;
+
+            noidaMap = L.map("liveNoidaMap", {
+                center: [28.5355, 77.3910],
+                zoom: 12,
+                zoomControl: true
+            });
+
+            L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+                attribution: '&copy; OpenStreetMap &copy; CARTO | Noida Smart Transit',
+                subdomains: "abcd",
+                maxZoom: 19
+            }).addTo(noidaMap);
+
+            const latlngs = NOIDA_STOPS.map(s => s.coords);
+            routePolyline = L.polyline(latlngs, {
+                color: "#0ea5e9",
+                weight: 5,
+                opacity: 0.85,
+                dashArray: "8, 6"
+            }).addTo(noidaMap);
+
+            NOIDA_STOPS.forEach(stop => {
+                L.circleMarker(stop.coords, {
+                    radius: 7,
+                    fillColor: "#38bdf8",
+                    color: "#ffffff",
+                    weight: 2,
+                    fillOpacity: 1
+                })
+                .bindPopup(`<b>${stop.name}</b><br><small>Verified Noida Transit Stop</small>`)
+                .addTo(noidaMap);
+            });
+
+            appState.buses3D.forEach(bus => {
+                const icon = L.divIcon({
+                    html: `<div class="bus-marker-3d" style="border-color:${bus.color};">${bus.id}</div>`,
+                    className: "",
+                    iconSize: [64, 26],
+                    iconAnchor: [32, 13]
+                });
+
+                const marker = L.marker(NOIDA_STOPS[0].coords, { icon }).addTo(noidaMap);
+                marker.bindPopup(`<b>Bus ${bus.id}</b><br>Noida Express Fleet`);
+                busMarkers[bus.id] = marker;
+            });
+        }
+
+        function getInterpolatedCoords(progress) {
+            const segCount = NOIDA_STOPS.length - 1;
+            const pos = progress * segCount;
+            const idx = Math.min(segCount - 1, Math.floor(pos));
+            const t = pos - idx;
+
+            const p1 = NOIDA_STOPS[idx].coords;
+            const p2 = NOIDA_STOPS[idx + 1].coords;
+
+            const lat = p1[0] + (p2[0] - p1[0]) * t;
+            const lng = p1[1] + (p2[1] - p1[1]) * t;
+            const nextStop = NOIDA_STOPS[Math.min(segCount, idx + 1)].name;
+
+            return { lat, lng, nextStop };
+        }
+
+        function updateLiveGPS() {
+            if (!noidaMap) return;
+
+            const seasonKey = document.getElementById("seasonSelect").value;
+            const weather = WEATHER_CONFIG[seasonKey] || WEATHER_CONFIG.CLEAR;
+            const trafficFactor = appState.trafficDelay ? 0.5 : 1.0;
+            const totalFactor = weather.factor * trafficFactor;
+
+            if (routePolyline) {
+                routePolyline.setStyle({ color: appState.trafficDelay ? "#f59e0b" : "#0ea5e9" });
+            }
+
+            const focusedBusId = document.getElementById("focusBusSelect").value;
+
+            appState.buses3D.forEach(b => {
+                if (appState.simRunning) {
+                    b.progress = (b.progress + b.speed * totalFactor) % 1;
+                }
+                const geo = getInterpolatedCoords(b.progress);
+                b.lat = geo.lat;
+                b.lng = geo.lng;
+                b.nextStop = geo.nextStop;
+
+                if (busMarkers[b.id]) {
+                    busMarkers[b.id].setLatLng([geo.lat, geo.lng]);
+                }
+
+                if (b.id === focusedBusId) {
+                    document.getElementById("nextStopHud").innerHTML = `
+                        <div><strong>Tracking:</strong> <span style="color:${b.color}">${b.id}</span></div>
+                        <div><strong>Next Stop:</strong> <span style="color:#10b981">${geo.nextStop}</span></div>
+                        <div><strong>Live GPS:</strong> <code>${geo.lat.toFixed(4)}° N, ${geo.lng.toFixed(4)}° E</code></div>
+                        <div><strong>Weather:</strong> <span>${weather.label}</span></div>
+                    `;
+                }
+            });
+        }
+
+        function updateTelemetryList() {
+            const seasonKey = document.getElementById("seasonSelect").value;
+            const weather = WEATHER_CONFIG[seasonKey] || WEATHER_CONFIG.CLEAR;
+            const totalFactor = weather.factor * (appState.trafficDelay ? 0.5 : 1.0);
+
+            document.getElementById("liveBusTelemetry").innerHTML = appState.buses3D.map(b => {
+                const speed = Math.round((44 + b.progress * 14) * totalFactor);
+                const eta = Math.max(2, Math.round(((1 - b.progress) * 24) / totalFactor));
+                return `
+                    <div class="list-item" style="cursor:pointer" onclick="focusOnBus('${b.id}')">
+                        <div>
+                            <strong style="color:${b.color}">${b.id}</strong> • Next: ${b.nextStop || "Noida Sec 18"}<br/>
+                            <small class="muted">${b.lat.toFixed(4)}° N, ${b.lng.toFixed(4)}° E</small>
+                        </div>
+                        <div style="text-align:right">
+                            <strong>${speed} km/h</strong><br/>
+                            <small style="color:#34d399">ETA ${eta} min</small>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        window.focusOnBus = function (busId) {
+            document.getElementById("focusBusSelect").value = busId;
+            const bus = appState.buses3D.find(b => b.id === busId);
+            if (bus && noidaMap) {
+                noidaMap.flyTo([bus.lat, bus.lng], 14, { duration: 1.2 });
+                if (busMarkers[busId]) busMarkers[busId].openPopup();
+            }
+        };
+
+        document.getElementById("focusBusSelect").addEventListener("change", (e) => focusOnBus(e.target.value));
+
+        document.getElementById("btnToggleSim").addEventListener("click", (e) => {
+            appState.simRunning = !appState.simRunning;
+            e.target.textContent = appState.simRunning ? "Pause GPS" : "Resume GPS";
+        });
+
+        document.getElementById("btnTriggerDelay").addEventListener("click", (e) => {
+            appState.trafficDelay = !appState.trafficDelay;
+            e.target.textContent = appState.trafficDelay ? "Traffic: Heavy Delay" : "Traffic: Normal";
+            showToast(appState.trafficDelay ? "Noida Expressway Traffic Active!" : "Expressway Traffic Cleared!");
+        });
+
+        setInterval(() => {
+            updateLiveGPS();
+            updateTelemetryList();
+        }, 1000);
+
+        // =====================================================================
+        // HELP DESK CHAT BOX
+        // =====================================================================
+        function addChatMsg(text, sender) {
+            const box = document.getElementById("chatMessages");
+            const div = document.createElement("div");
+            div.className = `msg ${sender}`;
+            div.textContent = text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function getBotReply(q) {
+            const s = q.toLowerCase();
+            if (s.includes("route") || s.includes("noida")) return "We cover Botanical Garden, Sec 18, Sec 62, City Centre, Sec 137, Gaur City, Pari Chowk & Knowledge Park II.";
+            if (s.includes("attendance") || s.includes("coming")) return "Open Student Dashboard → click 'I am Coming Today' or 'Not Coming' to update Driver & release your seat.";
+            if (s.includes("receipt") || s.includes("pay") || s.includes("qr")) return "Select seat in 'Book & Pay', scan the official UPI QR to pay, and receive an Official Receipt with a scannable Metro-style Boarding QR!";
+            if (s.includes("lost")) return "Please submit your bus number and item details in the Support Ticket form on the right. Desk helpline: 0120-240-8900.";
+            return "Thanks for reaching out! Our Noida Transport Desk team has logged your query. You can also call 1800-120-9911.";
+        }
+
+        window.sendQuickChat = function (text) {
+            addChatMsg(text, "user");
+            setTimeout(() => addChatMsg(getBotReply(text), "bot"), 350);
+        };
+
+        document.getElementById("chatForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const inp = document.getElementById("chatInput");
+            const txt = inp.value.trim();
+            if (!txt) return;
+            addChatMsg(txt, "user");
+            inp.value = "";
+            setTimeout(() => addChatMsg(getBotReply(txt), "bot"), 350);
+        });
+
+        document.getElementById("supportForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            showToast("Support Ticket Submitted to Noida Transport Desk!");
+            e.target.reset();
+        });
+
+        // =====================================================================
+        // INIT
+        // =====================================================================
+        const savedStaffRole = sessionStorage.getItem("unlockedStaffRole");
+        if (savedStaffRole && STAFF_CREDENTIALS[savedStaffRole]) {
+            appState.unlockedStaffRole = savedStaffRole;
+        }
+
+        syncLoginFormForRole(document.getElementById("loginRoleSelect").value);
+        applyRoleVisibility();
+        initBookingDropdown();
+        renderAllViews();
+        updateTelemetryList();
+    </script>
+</body>
+</html>
